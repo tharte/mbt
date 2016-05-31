@@ -1,0 +1,944 @@
+# -*- org-confirm-babel-evaluate: nil -*-
+#+title: Modern Bayesian Tools for Time Series Analysis
+#+author: Thomas P. Harte and R. Michael Weylandt
+#+email: tharte@cantab.net
+#+HTML_HEAD: <link rel="stylesheet" type="text/css" href="./3331384/github.css" />
+#+HTML_MATHJAX: align:"left" path:"https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+#+INFOJS_OPT: view:info toc:t
+#+PROPERTY: session *R*
+#+BIBLIOGRAPHY: /home/tharte/include/refs
+#+BIBLIOGRAPHY_STYLE: /home/tharte/include/ths
+#+OPTIONS: tex:t   # do the right thing automatically (MathJax)
+
+* Disclaimer
+** Please read the following Disclaimer carefully
+#+BEGIN_QUOTE
+    Thomas P. Harte and R. Michael Weylandt ("the Authors") are providing
+    this presentation and its contents ("the Content") for educational
+    purposes only at the /R in Finance Conference/, 2016-05-20,
+    Chicago, IL.  Neither of the Authors is a registered investment advisor
+    and neither purports to offer investment advice nor business advice.
+
+    You may use any of the Content under the terms of the
+    [[http://choosealicense.com/licenses/mit/][MIT License]] ([[sec:MIT_License][see below]]).
+
+    The Content is provided for informational and educational purposes only
+    and should not be construed as investment or business advice. Accordingly,
+    you should not rely on the Content in making any investment or business
+    decision.  Rather, you should use the Content only as a starting point
+    for doing additional independent research in order to allow you to form
+    your own opinion regarding investment or business decisions.  You are
+    encouraged to seek independent advice from a competent professional
+    person if you require legal, financial, tax or other expert assistance.
+
+    The Content may contain factual or typographical errors: the Content
+    should in no way be construed as a replacement for qualified, professional
+    advice.  There is no guarantee that use of the Content will be profitable.
+    Equally, there is no guarantee that use of the Content will not result
+    in losses.
+
+    THE AUTHORS SPECIFICALLY DISCLAIM ANY PERSONAL LIABILITY, LOSS OR RISK
+    INCURRED AS A CONSEQUENCE OF THE USE AND APPLICATION, EITHER DIRECTLY
+    OR INDIRECTLY, OF THE CONTENT. THE AUTHORS SPECIFICALLY DISCLAIM ANY
+    REPRESENTATION, WHETHER EXPLICIT OR IMPLIED, THAT APPLYING THE CONTENT
+    WILL LEAD TO SIMILAR RESULTS IN A BUSINESS SETTING. THE RESULTS PRESENTED
+    IN THE CONTENT ARE NOT NECESSARILY TYPICAL AND SHOULD NOT DETERMINE
+    EXPECTATIONS OF FINANCIAL OR BUSINESS RESULTS.
+#+END_QUOTE
+
+** MIT License
+<<sec:MIT_License>>
+#+BEGIN_QUOTE
+    The [[http://choosealicense.com/licenses/mit/][MIT License]]:
+
+    Copyright (c) 2016 Thomas P. Harte & R. Michael Weylandt
+(see below).
+    Permission is hereby granted, free of charge, to any person obtaining a
+    copy of this software and associated documentation files (the "Software"),
+    to deal in the Software without restriction, including without limitation
+    the rights to use, copy, modify, merge, publish, distribute, sublicense,
+    and/or sell copies of the Software, and to permit persons to whom the
+    Software is furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included
+    in all copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+    THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR
+    OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+    ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+    OTHER DEALINGS IN THE SOFTWARE.
+#+END_QUOTE
+
+* Set up
+#+BEGIN_SRC R :session *R* :exports both :results none :eval yes
+source("time_series_functions.R")
+.init.proj()
+
+##  we'll always use the same seed:
+`Random seed :: Modern Bayesian Tools for Time Series Analysis, R in Finance 2016`<- function() {
+   as.integer(as.Date("2016-05-20"))
+}
+`get_seed`<- `Random seed :: Modern Bayesian Tools for Time Series Analysis, R in Finance 2016`
+
+tabs<- read_time_series_data()
+#+END_SRC
+
+** Data sourced
+Most of the the data accompany the text:
+#+BEGIN_QUOTE
+[[http://www.wiley.com/WileyCDA/WileyTitle/productCd-0471653977.html]["Introduction to Time Series Analysis and Forecasting"]] (2008)
+Montgomery, D. C., Jennings C. L. and Kulahci, M.,
+John Wiley & Sons, Inc., Hoboken, NJ.
+#+END_QUOTE
+and can be downloaded from the web from [[ftp://ftp.wiley.com/public/sci_tech_med/time_series][Wiley's ftp site]].
+
+[[file:./img/TSAF_2.png]]
+
+** Plot time series
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.1-10YTCM.png :width 800 :height 500
+	plot_ts(sheet="B.1-10YTCM", fmla=`Rate (%)` ~ `Month`, type="l")
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.2-PHAR.png :width 800 :height 500
+	plot_ts(sheet="B.2-PHAR", fmla=`Sales (thousands)` ~ `Week`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.3-VISC.png :width 800 :height 500
+	plot_ts(sheet="B.3-VISC", fmla=`Reading` ~ `Time Period`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.4-BLUE.png :width 800 :height 500
+	plot_ts(sheet="B.4-BLUE", fmla=`Production (thousands)` ~ `Year`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.5-BEV.png :width 800 :height 500
+	plot_ts(sheet="B.5-BEV", fmla=`USD (millions)` ~ `Month`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.6-GSAT-Temp.png :width 800 :height 500
+	plot_ts(sheet="B.6-GSAT-CO2", fmla=`Surface Temp (C)` ~ `Year`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.6-GSAT-CO2.png :width 800 :height 500
+	plot_ts(sheet="B.6-GSAT-CO2", fmla=`CO2 (ppmv)` ~ `Year`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.7-WFMI.png :width 800 :height 500
+	plot_ts(sheet="B.7-WFMI", fmla=`Price (USD)` ~ `Date`, type="l")
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.8-UNEMP.png :width 800 :height 500
+	plot_ts(sheet="B.8-UNEMP", fmla=`Unemployment Rate (%)` ~ `Month`, type="l")
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.9-SUNSPOT.png :width 800 :height 500
+	plot_ts(sheet="B.9-SUNSPOT", fmla=`Sunspot Number` ~ `Year`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.10-FLOWN.png :width 800 :height 500
+	plot_ts(sheet="B.10-FLOWN", fmla=`Miles Flown (millions)` ~ `Month`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.11-CHAMP.png :width 800 :height 500
+	plot_ts(sheet="B.11-CHAMP", fmla=`Sales (thousands)` ~ `Month`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.12-YIELD.png :width 800 :height 500
+	plot_ts(sheet="B.12-YIELD", fmla=`Yield (%)` ~ `Hour`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.12-TEMP.png :width 800 :height 500
+	plot_ts(sheet="B.12-YIELD", fmla=`Temp (F)` ~ `Hour`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.18-COAL.png :width 800 :height 500
+	plot_ts(sheet="B.18-COAL", fmla=`Coal (short tons, thousands)` ~ `Year`)
+#+END_SRC
+*** Plot
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/B.19-DROWN.png :width 800 :height 500
+	plot_ts(sheet="B.19-DROWN", fmla=`Drowning Rate (per 100k)` ~ `Year`)
+#+END_SRC
+This is a particularly interesting, albeit macabre, short time
+series.
+I could not locate the original report (or reports) for the
+time period in question (1970--2004), but did find [[http://www.azdhs.gov/plan/report/im/2003/9/drowning2003.pdf][one]] on the
+[[http://www.azdhs.gov/][Arizona Department of Health Services]] web site (the AZDHS publishes
+such tables regularly, /e.g./ [[http://www.azdhs.gov/plan/report/im/2011/9/index.htm][these tables]] are in the period 2001--2011).
+
+Regrettably, I failed to find an explanation for the precipitous fall
+in deaths in the 1970--2004 period either in the book or on the AZDHS
+site. It would interesting to compare to mortality tables in other
+states. The CDC has some [[http://www.cdc.gov/homeandrecreationalsafety/water-safety/waterinjuries-factsheet.html][salient information]]:
+
+[[file:./img/CDC_2.png]]
+
+* State Space Modeling
+** Mean-only model, Normal shocks (vectorized)
+\begin{equation}
+y_t  \sim \mathscr{N}(\theta, \sigma^2)
+\end{equation}
+*** Create model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="B.2-PHAR",
+	model="mean-only_normal_vectorized",
+    force=FALSE
+)
+#+END_SRC
+
+*** Closure: capture a model
+#+BEGIN_SRC R :exports both :results output
+make_model
+#+END_SRC
+
+*** What's in /your/ model?
+#+BEGIN_SRC R :exports both :results output
+as.matrix(vapply(objects(env=model), function(x) class(get(x, env=model)), character(1)))
+#+END_SRC
+
+*** Show Stan code
+We use vectorization for this particular example because it has a nigh
+isomorphism to the Stan code (and vectorization affords an
+optimization in the Stan model):
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{equation}
+y_t  \sim \mathscr{N}(\theta, \sigma^2)
+\end{equation}
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+*** Assess fit
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/traceplot.png :width 800 :height 500 :eval yes
+traceplot(model$fit(), inc_warmup=FALSE)
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/pairs.png :width 800 :height 500 :eval yes
+pairs(model$fit())
+#+END_SRC
+
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/hist.png :width 800 :height 500
+par(mfrow=c(1,2))
+hist(extract(model$fit())[["theta"]], breaks=30, main="theta", xlab="theta")
+hist(extract(model$fit())[["sigma"]], breaks=30, main="sigma", xlab="sigma")
+#+END_SRC
+
+*** Simulate from fit (mean-posterior predictive fit)
+We can get the posterior mean in one of two ways:
+1.
+	#+BEGIN_SRC R :exports both :results output :eval yes
+	(theta<- get_posterior_mean(model$fit(), par="theta")[, "mean-all chains"])
+	(sigma<- get_posterior_mean(model$fit(), par="sigma")[, "mean-all chains"])
+	#+END_SRC
+1.
+	#+BEGIN_SRC R :exports both :results output :eval yes
+	(theta<- mean(extract(model$fit())[["theta"]]))
+	(sigma<- mean(extract(model$fit())[["sigma"]]))
+	#+END_SRC
+and then simulate from the posterior mean (this is a "posterior
+predictive fit"---not a forecast!):
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/post_predictive_fit.png :width 800 :height 500
+theta<- mean(extract(model$fit())[["theta"]])
+sigma<- mean(extract(model$fit())[["sigma"]])
+y.sim<- rnorm(model$T(), mean=theta, sd=sigma)
+plot(model$y(), col="steelblue4", lwd=2.5, type="o")
+lines(y.sim, type="o", col="blue")
+#+END_SRC
+Note that we are incorporating the uncertainty in the posterior
+estimates by averaging over them and taking a point estimate (the
+posterior mean). This is not the same as integrating over the
+posterior density (which is a weighted average of all posterior
+estimates).
+
+** Mean-only model, Normal shocks (=for= loop)
+\begin{eqnarray}
+y_t  &\sim& \mathscr{N}(\theta, \sigma^2) \\[3mm]
+\Leftrightarrow
+y_t &=&
+	\theta +
+	\varepsilon_t, \;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \sigma^2)
+\end{eqnarray}
+
+*** Create model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="B.2-PHAR",
+	model="mean-only_normal",
+    force=FALSE
+)
+#+END_SRC
+
+*** Show Stan code
+We used vectorization in the previous example
+but we prefer to use the =for= loop because it generalizes to the
+remaining examples and is of particular advantage in time-series
+models.
+We're not going to worry too much about
+optimizing the model set-up---rather, we'll focus on model use.
+
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{eqnarray}
+y_t  &\sim& \mathscr{N}(\theta, \sigma^2) \\[3mm]
+\Leftrightarrow
+y_t &=&
+	\theta +
+	\varepsilon_t, \;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \sigma^2)
+\end{eqnarray}
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+*** Simulate from fit
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/post_predictive_fit_2.png :width 800 :height 500
+theta<- mean(extract(model$fit())[["theta"]])
+sigma<- mean(extract(model$fit())[["sigma"]])
+y.sim<- rnorm(model$T(), mean=theta, sd=sigma)
+plot(model$y(), col="steelblue4", lwd=2.5, type="o")
+lines(y.sim, type="o", col="blue")
+#+END_SRC
+
+** Mean-only model, Normal shocks, generate forecast from model block
+\begin{eqnarray}
+y_t  &\sim& \mathscr{N}(\theta, \sigma^2) \\[3mm]
+\Leftrightarrow
+y_t &=&
+	\theta +
+	\varepsilon_t, \;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \sigma^2)
+\end{eqnarray}
+
+*** Create model
+*Note*: we will generate =T_new= new data points out of sample,
+ /i.e./ we will forecast =T_new= steps ahead.
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="B.2-PHAR",
+	model="mean-only_normal_predict_new_model_block",
+    T_new=5,
+    force=FALSE
+)
+#+END_SRC
+
+*** Show Stan code
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{eqnarray}
+y_t  &\sim& \mathscr{N}(\theta, \sigma^2) \\[3mm]
+\Leftrightarrow
+y_t &=&
+	\theta +
+	\varepsilon_t, \;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \sigma^2)
+\end{eqnarray}
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+*** Forecast
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/y_tilde.png :width 800 :height 500
+model$plot_y_tilde()
+#+END_SRC
+
+** Mean-only model, Normal shocks, generate forecast from =generated quantities=
+\begin{eqnarray}
+y_t  &\sim& \mathscr{N}(\theta, \sigma^2) \\
+\Leftrightarrow
+y_t &=&
+	\theta +
+	\varepsilon_t, \;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \sigma^2)
+\end{eqnarray}
+
+*** Create model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="B.2-PHAR",
+	model="mean-only_normal_predict_new_generated_quantities",
+    T_new=5,
+    force=FALSE
+)
+#+END_SRC
+
+*** Show Stan code
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{eqnarray}
+y_t  &\sim& \mathscr{N}(\theta, \sigma^2) \\[3mm]
+\Leftrightarrow
+y_t &=&
+	\theta +
+	\varepsilon_t, \;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \sigma^2)
+\end{eqnarray}
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+*** Forecast
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/y_tilde_2.png :width 800 :height 500
+model$plot_y_tilde()
+#+END_SRC
+
+** Mean-only model, Normal shocks, generate forecast from =generated quantities= with Monte Carlo simulation
+\begin{eqnarray}
+y_t  &\sim& \mathscr{N}(\theta, \sigma^2) \\[3mm]
+\Leftrightarrow
+y_t &=&
+	\theta +
+	\varepsilon_t, \;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \sigma^2)
+\end{eqnarray}
+
+*** Create model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="B.2-PHAR",
+	model="mean-only_normal_predict_new_generated_quantities_mc",
+    T_new=5,
+    force=FALSE
+)
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs.png :width 800 :height 500
+	plot_ts(sheet=model$sheet(), fmla=`Sales (thousands)` ~ `Week`);
+#+END_SRC
+
+*** Show Stan code
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{equation}
+y_t  \sim \mathscr{N}(\theta, \sigma^2)
+\end{equation}
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+*** Assess fit
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs_traceplot.png :width 800 :height 500 :eval yes
+## layout(matrix(c(1,2,3,3), byrow=TRUE, nc=2))
+traceplot(model$fit(), inc_warmup=FALSE)
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs_fit.png :width 800 :height 500 :eval yes
+pairs(model$fit())
+#+END_SRC
+
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs_hist.png :width 800 :height 500
+par(mfrow=c(1,2))
+hist(extract(model$fit())[["theta"]], breaks=50, main="theta", xlab="theta")
+hist(extract(model$fit())[["sigma"]], breaks=50, main="sigma", xlab="sigma")
+#+END_SRC
+
+*** Simulate from fit (mean-posterior predictive fit)
+We can get the posterior mean in one of two ways:
+1.
+	#+BEGIN_SRC R :exports both :results output :eval yes
+	(theta<- get_posterior_mean(model$fit(), par="theta")[, "mean-all chains"])
+	(sigma<- get_posterior_mean(model$fit(), par="sigma")[, "mean-all chains"])
+	#+END_SRC
+1.
+	#+BEGIN_SRC R :exports both :results output :eval yes
+	(theta<- mean(extract(model$fit())[["theta"]]))
+	(sigma<- mean(extract(model$fit())[["sigma"]]))
+	#+END_SRC
+and then simulate from the posterior mean (this is a "posterior
+predictive fit"---not a forecast!):
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs_post_predictive_fit.png :width 800 :height 500
+theta<- mean(extract(model$fit())[["theta"]])
+sigma<- mean(extract(model$fit())[["sigma"]])
+y.sim<- rnorm(model$T(), mean=theta, sd=sigma)
+plot(model$y(), col="steelblue4", lwd=2.5, type="o")
+lines(y.sim, type="o", col="blue")
+#+END_SRC
+
+*** Forecast
+#+BEGIN_SRC R :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs_post_predictive_y_tilde.png :width 800 :height 500
+model$plot_y_tilde()
+#+END_SRC
+
+** Mean-varying model, Normal shocks (a.k.a. "local-level model", "random walk plus noise")
+\begin{eqnarray}
+y_t             &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_2^2) \\[3mm]
+&\Leftrightarrow& \\
+y_t  &=& \theta_{1,t} + \varepsilon_t, \;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \, \sigma_1^2)
+  \;\;\left\{
+	\begin{array}{l}
+		\mbox{} \\
+		\mbox{observation / measurement equation} \\
+		\mbox{}
+	\end{array}
+	\right. \\
+\theta_{1,t+1}  &=& \theta_{1,t} + \eta_t, \;\;\;\;\; \eta_t \;\sim\; \mathscr{N}(0, \, \sigma_2^2)
+  \;\;\left\{
+	\begin{array}{l}
+		\mbox{} \\
+		\mbox{state equation} \\
+		\mbox{}
+	\end{array}
+	\right.
+\end{eqnarray}
+
+*** Create model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="B.19-DROWN",
+	model="mean-varying_normal",
+    T_new=NULL,
+    force=FALSE
+)
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/drown.png :width 800 :height 500
+	plot_ts(sheet=model$sheet(), fmla=`Drowning Rate (per 100k)` ~ `Year`)
+#+END_SRC
+
+*** Show Stan code
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{eqnarray}
+y_t             &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_2^2) \\[3mm]
+&\Leftrightarrow& \\
+y_t  &=& \theta_{1,t} + \varepsilon_t, \;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \, \sigma_1^2)
+  \;\;\left\{
+	\begin{array}{l}
+		\mbox{} \\
+		\mbox{observation / measurement equation} \\
+		\mbox{}
+	\end{array}
+	\right. \\
+\theta_{1,t+1}  &=& \theta_{1,t} + \eta_t, \;\;\;\;\; \eta_t \;\sim\; \mathscr{N}(0, \, \sigma_2^2)
+  \;\;\left\{
+	\begin{array}{l}
+		\mbox{} \\
+		\mbox{state equation} \\
+		\mbox{}
+	\end{array}
+	\right.
+\end{eqnarray}
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/drown_local.png :width 800 :height 500
+	theta_1<- model$extract_par("theta_1", start=1, end=model$T())
+	sigma_1<- mean(extract(model$fit())[["sigma_1"]])
+	sigma_2<- mean(extract(model$fit())[["sigma_2"]])
+
+	plot_ts(sheet="B.19-DROWN", fmla=`Drowning Rate (per 100k)` ~ `Year`)
+    lines(theta_1_mean ~ Year, data=theta_1, col="darkgreen", type="o")
+#+END_SRC
+
+** Mean-varying model, Normal shocks (a.k.a. "local-level model", "random walk plus noise"), predict ahead
+\begin{eqnarray}
+y_t             &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_2^2) \\[3mm]
+&\Leftrightarrow& \\
+y_t             &=& \theta_{1,t} + \varepsilon_t, \;\;\;\;\;
+						\varepsilon_t \;\sim\; \mathscr{N}(0, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &=& \theta_{1,t} +
+						\eta_t, \;\;\;\;\; \eta_t \;\sim\; \mathscr{N}(0, \, \sigma_2^2)
+\end{eqnarray}
+
+*** Create model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="B.19-DROWN",
+	model="mean-varying_normal_predict_new",
+    T_new=5,
+    force=FALSE
+)
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/drown_2.png :width 800 :height 500
+	plot_ts(sheet=model$sheet(), fmla=`Drowning Rate (per 100k)` ~ `Year`)
+#+END_SRC
+
+*** Show Stan code
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{eqnarray}
+y_t             &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_2^2) \\[3mm]
+&\Leftrightarrow& \\
+y_t             &=& \theta_{1,t} + \varepsilon_t, \;\;\;\;\;
+						\varepsilon_t \;\sim\; \mathscr{N}(0, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &=& \theta_{1,t} +
+						\eta_t, \;\;\;\;\; \eta_t \;\sim\; \mathscr{N}(0, \, \sigma_2^2)
+\end{eqnarray}
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results none :eval yes
+model$fit()
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/drown_2_local.png :width 800 :height 500
+model$plot_y_tilde()
+theta_1<- model$extract_par("theta_1", start=1, end=model$T_end())
+lines(theta_1_mean ~ Year, data=theta_1, col="darkgreen", type="o")
+#+END_SRC
+
+** Mean-varying, linear-trend model, Normal shocks, predict ahead (a.k.a. "local linear-trend model")
+\begin{eqnarray}
+y_t             &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &\sim& \mathscr{N}(\theta_{1,t} + \theta_{2,t}, \, \sigma_2^2) \\[3mm]
+\theta_{2,t+1}  &\sim& \mathscr{N}(\theta_{2,t}, \, \sigma_2^2) \\[3mm]
+&\Leftrightarrow& \\
+y_t             &=& \theta_{1,t} + \varepsilon_t, \;\;\;\;\;
+                    \varepsilon_t \;\sim\; \mathscr{N}(0, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &=& \theta_{1,t} + \theta_{2,t} + \eta_t, \;\;\;\;\;
+                    \eta_t \;\sim\; \mathscr{N}(0, \, \sigma_2^2) \\[3mm]
+\theta_{2,t+1}  &=& \theta_{2,t} + \xi_t, \;\;\;\;\;
+                    \xi_t \;\sim\; \mathscr{N}(0, \, \sigma_3^2)
+\end{eqnarray}
+
+*** Create model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="B.19-DROWN",
+	model="mean-varying_linear-trend_normal",
+    T_new=5,
+    iter=5000,
+	force=FALSE
+)
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/drown_3.png :width 800 :height 500
+	plot_ts(sheet=model$sheet(), fmla=`Drowning Rate (per 100k)` ~ `Year`)
+#+END_SRC
+
+*** Show Stan code
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{eqnarray}
+y_t             &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &\sim& \mathscr{N}(\theta_{1,t} + \theta_{2,t}, \, \sigma_2^2) \\[3mm]
+\theta_{2,t+1}  &\sim& \mathscr{N}(\theta_{2,t}, \, \sigma_2^2) \\[3mm]
+&\Leftrightarrow& \\
+y_t             &=& \theta_{1,t} + \varepsilon_t, \;\;\;\;\;
+                    \varepsilon_t \;\sim\; \mathscr{N}(0, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &=& \theta_{1,t} + \theta_{2,t} + \eta_t, \;\;\;\;\;
+                    \eta_t \;\sim\; \mathscr{N}(0, \, \sigma_2^2) \\[3mm]
+\theta_{2,t+1}  &=& \theta_{2,t} + \xi_t, \;\;\;\;\;
+                    \xi_t \;\sim\; \mathscr{N}(0, \, \sigma_3^2)
+\end{eqnarray}
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/drown_3_y_tilde.png :width 800 :height 500
+model$plot_y_tilde()
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/drown_3_local.png :width 800 :height 500
+	model$plot_y_tilde()
+	## TODO: put this into the model:
+	theta_1<- model$extract_par("theta_1", start=1, end=model$T_end())
+	lines(theta_1_mean ~ Year, data=theta_1, col="darkgreen", type="o")
+#+END_SRC
+
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/drown_3_level.png :width 800 :height 500
+theta_2<- model$extract_par("theta_2", start=1, end=model$T_end())
+par(mar=c(5,4,4,5)+.1)
+plot_ts(model$sheet(), fmla=`Drowning Rate (per 100k)` ~ `Year`)
+par(new=TRUE)
+plot(
+	theta_2_mean ~ Year,
+	data=theta_2 %>% filter(Year <= (get_t(model$sheet()) %>% max)),
+	col="darkgreen", type="o",
+	xaxt="n", yaxt="n", xlab="", ylab=""
+)
+axis(4)
+# mtext("theta_2", side=4, line=3)
+legend("bottomleft", col=c("steelblue3","darkgreen"), lwd=2, legend=c("time series","theta_2"), inset=0.02)
+#+END_SRC
+
+** Mean-varying with seasonal, Normal shocks (a.k.a. "local model with stochastic seasonal")
+\begin{eqnarray}
+y_t             &\sim& \mathscr{N}(\theta_{1,t} + s_t, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_2^2) \\[3mm]
+s_{t+1}         &\sim& \mathscr{N}(-\sum_{\lambda = 1}^{\lambda = \Lambda-1 } s_{t-\lambda}, \, \sigma_3^2),
+                       \;\;\;\;\;\mbox{each season $s=s_t$, for $s=1,\ldots,\Lambda$,
+                       e.g. $\Lambda=12$ for monthly data} \\[3mm]
+					   &\Leftrightarrow& \\[3mm]
+y_t             &=& \theta_{1,t} + \varepsilon_t, \;\;\;\;\;
+                    \varepsilon_t \;\sim\; \mathscr{N}(0, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &=& \theta_{1,t} + \eta_t, \;\;\;\;\;
+                    \eta_t \;\sim\; \mathscr{N}(0, \, \sigma_2^2) \\[3mm]
+s_{t+1}         &=& -\sum_{\lambda = 1}^{\lambda = \Lambda-1 } s_{t-\lambda} + \xi_t, \;\;\;\;\;
+                    \xi_t \;\sim\; \mathscr{N}(0, \, \sigma_3^2)
+\end{eqnarray}
+
+*** Create model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="B.5-BEV",
+	model="mean-varying_seasonal_normal",
+    T_new=NULL,
+    seasonal=12,
+    iter=5000,
+	force=FALSE
+)
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs_3.png :width 800 :height 500
+	plot_ts(sheet=model$sheet(), fmla=`USD (millions)` ~ `Month`)
+#+END_SRC
+
+*** Show Stan code
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{eqnarray}
+y_t             &\sim& \mathscr{N}(\theta_{1,t} + s_t, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &\sim& \mathscr{N}(\theta_{1,t}, \, \sigma_2^2) \\[3mm]
+s_{t+1}         &\sim& \mathscr{N}(-\sum_{\lambda = 1}^{\lambda = \Lambda } s_{t-\lambda}, \, \sigma_3^2),
+                       \;\;\;\;\;\mbox{each season $s=s_t$, for $s=1,\ldots,\Lambda$,
+                       e.g. $\Lambda=12$ for monthly data} \\[3mm]
+					   &\Leftrightarrow& \\[3mm]
+y_t             &=& \theta_{1,t} + \varepsilon_t, \;\;\;\;\;
+                    \varepsilon_t \;\sim\; \mathscr{N}(0, \, \sigma_1^2) \\[3mm]
+\theta_{1,t+1}  &=& \theta_{1,t} + \eta_t, \;\;\;\;\;
+                    \eta_t \;\sim\; \mathscr{N}(0, \, \sigma_2^2) \\[3mm]
+s_{t+1}         &=& -\sum_{\lambda = 1}^{\lambda = \Lambda } s_{t-\lambda} + \xi_t, \;\;\;\;\;
+                    \xi_t \;\sim\; \mathscr{N}(0, \, \sigma_3^2)
+\end{eqnarray}
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs_3_local.png :width 800 :height 500
+	plot_ts(model$sheet(), fmla=`USD (millions)` ~ `Month`)
+	theta_1<- model$extract_par("theta_1", start=1, end=model$T_end())
+	lines(theta_1_mean ~ Month, data=theta_1, col="darkgreen", type="o")
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs_3_level.png :width 800 :height 500
+s<- model$extract_par("s", start=1, end=model$T())
+par(mar=c(5,4,4,5)+.1)
+plot_ts(model$sheet(), fmla=`USD (millions)` ~ `Month`)
+par(new=TRUE)
+plot(
+	s_mean ~ Month,
+	data=s,
+	col="darkgreen", type="o",
+	xaxt="n", yaxt="n", xlab="", ylab=""
+)
+axis(4)
+# mtext("theta_2", side=4, line=3)
+legend("bottomleft", col=c("steelblue3","darkgreen"), lwd=2, legend=c("time series","theta_2"), inset=0.02)
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/bevs_3_fit.png :width 800 :height 500 :eval no
+##  *FIXME*: what's up with the phase drift in the stochastic seasonal here?
+plot_ts(model$sheet(), fmla=`USD (millions)` ~ `Month`)
+y.hat<- inner_join(
+			theta_1,
+			s,
+			by=c("Month")
+		) %>%
+		mutate(
+			sum=theta_1_mean + s_mean
+		) %>%
+		select(
+			Month,
+			sum
+		)
+lines(sum ~ Month, data=y.hat, col="darkgreen", type="o")
+#+END_SRC
+
+* Autoregressive models, unit roots and cointegration
+
+Typically, discussion on whether any observed y_t are stationary
+focuses on whether or not there is a unit root in the AR(1) process:
+\begin{equation}
+	y_t = \rho_0 + \rho_1 y_{t-1} + \varepsilon_t
+\end{equation}
+where \rho \geq 1 indicates a nonstationary process.
+
+Granger and Swanson proposed the stochastic unit root model ("STUR"):
+#+BEGIN_QUOTE
+[[http://econweb.rutgers.edu/nswanson/papers/stur5.pdf][An introduction to stochastic unit roots]] (1997)
+Granger, C. and Swanson, N., /Journal of Econometrics/ *80* (1): 35--62.
+#+END_QUOTE
+In this model:
+\begin{eqnarray}
+y_t       &=& \rho_t y_{t-1} + \varepsilon_t
+	\;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \sigma_1^2) \\[3mm]
+\rho_t    &=& e^{\omega_t} \\[3mm]
+\omega_t  &=& \varphi_0 + \varphi_1\omega_{t-1} + \eta_t
+	\;\;\;\;\; \eta_t \;\sim\; \mathscr{N}(0, \sigma_2^2) \\[3mm]
+				\\[3mm]
+          &=& \mu_{\omega} + \varphi_1 (\omega_{t-1} - \mu_{\omega}) + \eta_t
+\end{eqnarray}
+where
+\begin{equation}
+	\mu_\omega = {\varphi_0 \over 1-\varphi_1}
+\end{equation}
+
+#+BEGIN_QUOTE
+[[https://books.google.com/books?id=IB6Nu-qMKHYC&pg=PP12&lpg=PP12&dq=jones+marriott+%22a+bayesian+analysis+of+stochastic+unit+root+models%22&source=bl&ots=k7eF7i8n-X&sig=H4qoS9fbVF8pRGnUCkuyqYkXTCY&hl=en&sa=X&ved=0ahUKEwiruqSwwejMAhWi5oMKHddnBcMQ6AEIIjAC#v=onepage&q=jones%20marriott%20%22a%20bayesian%20analysis%20of%20stochastic%20unit%20root%20models%22&f=false][/A Bayesian analysis of stochastic unit root models/]] (1999)
+Jones, C. and Marriott, J., /p./ 785--794 in "Bayesian Statistics" (6th Edition),
+Bernardo, J. M., Berger, J. O., Dawid, A. P. and Smith, A. F. M. (Eds),
+Oxford University Press, Oxford, England.
+#+END_QUOTE
+consider Bayesian estimation of this model and focus on the value of
+\mu_\omega:
+\begin{eqnarray}
+\mu_\omega < 0       &\;\;\Leftrightarrow\;\;& \mathscr{E}(\rho_t) < 1 \\[3mm]
+\mu_\omega = 0       &\;\;\Leftrightarrow\;\;& \mathscr{E}(\rho_t) = 1 \\[3mm]
+\mu_\omega > 0       &\;\;\Leftrightarrow\;\;& \mathscr{E}(\rho_t) > 1
+\end{eqnarray}
+
+*** Create model
+#+BEGIN_SRC R :session *R* :exports none :results none
+	tabs[["STUR"]]<- read_us_data_on_consumption_and_income()
+#+END_SRC
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/us_consumption.png :width 800 :height 500 :eval yes
+	lims<- range(unlist(tabs[["STUR"]] %>% select(C, Y)))
+	plot(C ~ time,
+		data=tabs[["STUR"]],
+        col="black",
+        type="l",
+        lwd=1.75,
+        ylim=c(lims[1], lims[2]),
+        ylab="Consumption and Income",
+        main="US Quarterly Consumption and Income"
+	)
+	lines(Y ~ time,
+        data=tabs[["STUR"]],
+        col="steelblue4",
+        type="l",
+        lwd=1.5,
+        ylim=c(lims[1], lims[2])
+	)
+	legend(
+        "topleft",
+        col=c("black", "steelblue4"),
+        lwd=2,
+        legend=c("Consumption","Income"),
+        inset=0.02
+	)
+#+END_SRC
+
+
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/us_consumption_error.png :width 800 :height 500 :eval yes
+	plot(e ~ time,
+        data=tabs[["STUR"]],
+        col="black",
+        type="o",
+        main="Error process: Consumption regressed on Income"
+    )
+	abline(h=0, col="steelblue4")
+#+END_SRC
+
+
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model<- make_model(
+	sheet="STUR",
+	response="e",
+	model="stur",
+    iter=5000,
+	force=FALSE
+)
+#+END_SRC
+
+#+RESULTS:
+
+*** Show Stan code
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$show_model_file()
+#+END_SRC
+
+cf. the model itself:
+\begin{eqnarray}
+y_t       &=& \rho_t y_{t-1} + \varepsilon_t
+	\;\;\;\;\; \varepsilon_t \;\sim\; \mathscr{N}(0, \sigma_1^2) \\[3mm]
+\rho_t    &=& e^{\omega_t} \\[3mm]
+\omega_t  &=& \varphi_0 + \varphi_1\omega_{t-1} + \eta_t
+	\;\;\;\;\; \eta_t \;\sim\; \mathscr{N}(0, \sigma_2^2) \\[3mm]
+				\\[3mm]
+          &=& \mu_{\omega} + \varphi_1 (\omega_{t-1} - \mu_{\omega}) + \eta_t
+\end{eqnarray}
+where
+\begin{equation}
+	\mu_\omega = {\varphi_0 \over 1-\varphi_1}
+\end{equation}
+
+
+*** Fitted Stan model
+#+BEGIN_SRC R :src *session* :exports both :results output :eval yes
+model$fit()
+#+END_SRC
+
+A unit root corresponds to \mu_\omega being positive, therefore for
+stationarity we wish to know:
+#+BEGIN_QUOTE
+/What is \Pr ( \mu_\omega ) < 0/?
+#+END_QUOTE
+#+BEGIN_SRC R :exports both :results output graphics  :file ./img/us_consumption_hist.png :width 500 :height 500
+    mu_omega<- rstan::extract(model$fit())[["mu_omega"]]
+	hist(mu_omega, breaks=30, main="mu_omega", xlab="mu_omega", ylab="density")
+#+END_SRC
+
+* On exit: clean up
+Discard all pending work and free resources (memory, sockets, &c.):
+#+BEGIN_SRC R :session *R* :eval yes
+	graphics.off()
+#+END_SRC
