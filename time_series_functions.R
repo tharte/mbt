@@ -21,6 +21,16 @@
 
 	invisible()
 }
+`bind_to_env`<- function(object, envir) {
+    assert(is.environment(envir))
+
+    nm<- as.character(substitute(object))
+    assign(nm, object, env=envir)
+    if (is.function(object))
+		environment(envir[[nm]])<- as.environment(envir)
+
+    invisible()
+}
 `get_data_dir`<- function() {
     file.path("data")
 }
