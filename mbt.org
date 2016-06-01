@@ -86,7 +86,7 @@ source("time_series_functions.R")
 tabs<- read_time_series_data()
 #+END_SRC
 
-** Data sourced
+** Data sources
 Most of the the data accompany the text:
 #+BEGIN_QUOTE
 [[http://www.wiley.com/WileyCDA/WileyTitle/productCd-0471653977.html]["Introduction to Time Series Analysis and Forecasting"]] (2008)
