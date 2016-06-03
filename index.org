@@ -74,7 +74,7 @@
 
 * Seminar: Modern Bayesian Tools for Time Series Analysis
 The talk was comprised of:
-1. [[][Michael's talk]], and
+1. [[https://github.com/michaelweylandt/R-Finance-2016-Tutorial-Materials/raw/master/RFin2016.pdf][Michael's talk]], and
 1. [[./mbt.html][Thomas's talk]]
 
 The source for [[./mbt.html][Thomas's talk]] is at the GitHub repo:
